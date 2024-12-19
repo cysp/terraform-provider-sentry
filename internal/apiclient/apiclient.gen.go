@@ -22,6 +22,24 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for MonitorOwnerType.
+const (
+	MonitorOwnerTypeTeam MonitorOwnerType = "team"
+	MonitorOwnerTypeUser MonitorOwnerType = "user"
+)
+
+// Defines values for MonitorConfigScheduleType.
+const (
+	Crontab  MonitorConfigScheduleType = "crontab"
+	Interval MonitorConfigScheduleType = "interval"
+)
+
+// Defines values for MonitorType.
+const (
+	MonitorTypeCronJob MonitorType = "cron_job"
+	MonitorTypeUnknown MonitorType = "unknown"
+)
+
 // Defines values for ProjectRuleActionAzureDevopsCreateTicketId.
 const (
 	SentryIntegrationsVstsNotifyActionAzureDevopsCreateTicketAction ProjectRuleActionAzureDevopsCreateTicketId = "sentry.integrations.vsts.notify_action.AzureDevopsCreateTicketAction"
@@ -177,11 +195,74 @@ const (
 	SentryRulesFiltersTaggedEventTaggedEventFilter ProjectRuleFilterTaggedEventId = "sentry.rules.filters.tagged_event.TaggedEventFilter"
 )
 
+// Defines values for CreateMonitorJSONBodyStatus.
+const (
+	CreateMonitorJSONBodyStatusActive   CreateMonitorJSONBodyStatus = "active"
+	CreateMonitorJSONBodyStatusDisabled CreateMonitorJSONBodyStatus = "disabled"
+)
+
+// Defines values for CreateMonitorJSONBodyType.
+const (
+	CreateMonitorJSONBodyTypeCronJob CreateMonitorJSONBodyType = "cron_job"
+)
+
 // Defines values for ListProjectClientKeysParamsStatus.
 const (
-	Active   ListProjectClientKeysParamsStatus = "active"
-	Inactive ListProjectClientKeysParamsStatus = "inactive"
+	ListProjectClientKeysParamsStatusActive   ListProjectClientKeysParamsStatus = "active"
+	ListProjectClientKeysParamsStatusInactive ListProjectClientKeysParamsStatus = "inactive"
 )
+
+// Monitor defines model for Monitor.
+type Monitor struct {
+	Config      MonitorConfig `json:"config"`
+	DateCreated time.Time     `json:"dateCreated"`
+	Id          string        `json:"id"`
+	IsMuted     bool          `json:"isMuted"`
+	Name        string        `json:"name"`
+	Owner       *struct {
+		Id   string           `json:"id"`
+		Type MonitorOwnerType `json:"type"`
+	} `json:"owner"`
+	Project struct {
+		Id   string `json:"id"`
+		Slug string `json:"slug"`
+	} `json:"project"`
+	Slug   string      `json:"slug"`
+	Status string      `json:"status"`
+	Type   MonitorType `json:"type"`
+}
+
+// MonitorOwnerType defines model for Monitor.Owner.Type.
+type MonitorOwnerType string
+
+// MonitorConfig defines model for MonitorConfig.
+type MonitorConfig struct {
+	AlertRuleId           *json.Number              `json:"alert_rule_id"`
+	CheckinMargin         int64                     `json:"checkin_margin"`
+	FailureIssueThreshold *int64                    `json:"failure_issue_threshold"`
+	MaxRuntime            *int64                    `json:"max_runtime"`
+	RecoveryThreshold     *int64                    `json:"recovery_threshold"`
+	Schedule              MonitorConfig_Schedule    `json:"schedule"`
+	ScheduleType          MonitorConfigScheduleType `json:"schedule_type"`
+	Timezone              *string                   `json:"timezone"`
+}
+
+// MonitorConfigSchedule0 defines model for .
+type MonitorConfigSchedule0 = string
+
+// MonitorConfigSchedule1 defines model for .
+type MonitorConfigSchedule1 = []int
+
+// MonitorConfig_Schedule defines model for MonitorConfig.Schedule.
+type MonitorConfig_Schedule struct {
+	union json.RawMessage
+}
+
+// MonitorConfigScheduleType defines model for MonitorConfig.ScheduleType.
+type MonitorConfigScheduleType string
+
+// MonitorType defines model for MonitorType.
+type MonitorType string
 
 // Organization defines model for Organization.
 type Organization struct {
@@ -672,6 +753,9 @@ type Team struct {
 // Cursor defines model for cursor.
 type Cursor = string
 
+// MonitorIdOrSlug defines model for monitor_id_or_slug.
+type MonitorIdOrSlug = string
+
 // OrganizationIdOrSlug defines model for organization_id_or_slug.
 type OrganizationIdOrSlug = string
 
@@ -680,6 +764,36 @@ type ProjectIdOrSlug = string
 
 // TeamIdOrSlug defines model for team_id_or_slug.
 type TeamIdOrSlug = string
+
+// CreateMonitorJSONBody defines parameters for CreateMonitor.
+type CreateMonitorJSONBody struct {
+	// IsMuted Disable creation of monitor incidents
+	IsMuted *bool `json:"is_muted,omitempty"`
+
+	// Name Name of the monitor. Used for notifications.
+	Name string `json:"name"`
+
+	// Owner The ID of the team or user that owns the monitor. (eg. user:51 or team:6)
+	Owner *string `json:"owner"`
+
+	// Slug Uniquely identifies your monitor within your organization. Changing this slug will require updates to any instrumented check-in calls.
+	Slug *string `json:"slug,omitempty"`
+
+	// Status Status of the monitor. Disabled monitors will not accept events and will not count towards the monitor quota.
+	//
+	// * `active`
+	// * `disabled`
+	Status *CreateMonitorJSONBodyStatus `json:"status,omitempty"`
+
+	// Type * `cron_job`
+	Type CreateMonitorJSONBodyType `json:"type"`
+}
+
+// CreateMonitorJSONBodyStatus defines parameters for CreateMonitor.
+type CreateMonitorJSONBodyStatus string
+
+// CreateMonitorJSONBodyType defines parameters for CreateMonitor.
+type CreateMonitorJSONBodyType string
 
 // ListOrganizationProjectsParams defines parameters for ListOrganizationProjects.
 type ListOrganizationProjectsParams struct {
@@ -790,6 +904,9 @@ type CreateOrganizationTeamProjectJSONBody struct {
 	Slug         *string `json:"slug,omitempty"`
 }
 
+// CreateMonitorJSONRequestBody defines body for CreateMonitor for application/json ContentType.
+type CreateMonitorJSONRequestBody CreateMonitorJSONBody
+
 // DisableSpikeProtectionJSONRequestBody defines body for DisableSpikeProtection for application/json ContentType.
 type DisableSpikeProtectionJSONRequestBody DisableSpikeProtectionJSONBody
 
@@ -813,6 +930,68 @@ type UpdateProjectRuleJSONRequestBody UpdateProjectRuleJSONBody
 
 // CreateOrganizationTeamProjectJSONRequestBody defines body for CreateOrganizationTeamProject for application/json ContentType.
 type CreateOrganizationTeamProjectJSONRequestBody CreateOrganizationTeamProjectJSONBody
+
+// AsMonitorConfigSchedule0 returns the union data inside the MonitorConfig_Schedule as a MonitorConfigSchedule0
+func (t MonitorConfig_Schedule) AsMonitorConfigSchedule0() (MonitorConfigSchedule0, error) {
+	var body MonitorConfigSchedule0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMonitorConfigSchedule0 overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigSchedule0
+func (t *MonitorConfig_Schedule) FromMonitorConfigSchedule0(v MonitorConfigSchedule0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMonitorConfigSchedule0 performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigSchedule0
+func (t *MonitorConfig_Schedule) MergeMonitorConfigSchedule0(v MonitorConfigSchedule0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsMonitorConfigSchedule1 returns the union data inside the MonitorConfig_Schedule as a MonitorConfigSchedule1
+func (t MonitorConfig_Schedule) AsMonitorConfigSchedule1() (MonitorConfigSchedule1, error) {
+	var body MonitorConfigSchedule1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMonitorConfigSchedule1 overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigSchedule1
+func (t *MonitorConfig_Schedule) FromMonitorConfigSchedule1(v MonitorConfigSchedule1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeMonitorConfigSchedule1 performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigSchedule1
+func (t *MonitorConfig_Schedule) MergeMonitorConfigSchedule1(v MonitorConfigSchedule1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MonitorConfig_Schedule) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MonitorConfig_Schedule) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // AsProjectRuleActionNotifyEmail returns the union data inside the ProjectRuleAction as a ProjectRuleActionNotifyEmail
 func (t ProjectRuleAction) AsProjectRuleActionNotifyEmail() (ProjectRuleActionNotifyEmail, error) {
@@ -2034,6 +2213,17 @@ type ClientInterface interface {
 	// GetOrganization request
 	GetOrganization(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CreateMonitorWithBody request with any body
+	CreateMonitorWithBody(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, body CreateMonitorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteOrganizationMonitor request
+	DeleteOrganizationMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetOrganizationMonitor request
+	GetOrganizationMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListOrganizationProjects request
 	ListOrganizationProjects(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, params *ListOrganizationProjectsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2119,6 +2309,54 @@ func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn)
 
 func (c *Client) GetOrganization(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetOrganizationRequest(c.Server, organizationIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMonitorWithBody(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMonitorRequestWithBody(c.Server, organizationIdOrSlug, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, body CreateMonitorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMonitorRequest(c.Server, organizationIdOrSlug, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteOrganizationMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteOrganizationMonitorRequest(c.Server, organizationIdOrSlug, monitorIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetOrganizationMonitor(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOrganizationMonitorRequest(c.Server, organizationIdOrSlug, monitorIdOrSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -2485,6 +2723,135 @@ func NewGetOrganizationRequest(server string, organizationIdOrSlug OrganizationI
 	}
 
 	operationPath := fmt.Sprintf("/0/organizations/%s/", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMonitorRequest calls the generic CreateMonitor builder with application/json body
+func NewCreateMonitorRequest(server string, organizationIdOrSlug OrganizationIdOrSlug, body CreateMonitorJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMonitorRequestWithBody(server, organizationIdOrSlug, "application/json", bodyReader)
+}
+
+// NewCreateMonitorRequestWithBody generates requests for CreateMonitor with any type of body
+func NewCreateMonitorRequestWithBody(server string, organizationIdOrSlug OrganizationIdOrSlug, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "organization_id_or_slug", runtime.ParamLocationPath, organizationIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/0/organizations/%s/monitors/", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteOrganizationMonitorRequest generates requests for DeleteOrganizationMonitor
+func NewDeleteOrganizationMonitorRequest(server string, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "organization_id_or_slug", runtime.ParamLocationPath, organizationIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "monitor_id_or_slug", runtime.ParamLocationPath, monitorIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/0/organizations/%s/monitors/%s/", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetOrganizationMonitorRequest generates requests for GetOrganizationMonitor
+func NewGetOrganizationMonitorRequest(server string, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "organization_id_or_slug", runtime.ParamLocationPath, organizationIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "monitor_id_or_slug", runtime.ParamLocationPath, monitorIdOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/0/organizations/%s/monitors/%s/", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3504,6 +3871,17 @@ type ClientWithResponsesInterface interface {
 	// GetOrganizationWithResponse request
 	GetOrganizationWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, reqEditors ...RequestEditorFn) (*GetOrganizationResponse, error)
 
+	// CreateMonitorWithBodyWithResponse request with any body
+	CreateMonitorWithBodyWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMonitorResponse, error)
+
+	CreateMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, body CreateMonitorJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMonitorResponse, error)
+
+	// DeleteOrganizationMonitorWithResponse request
+	DeleteOrganizationMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*DeleteOrganizationMonitorResponse, error)
+
+	// GetOrganizationMonitorWithResponse request
+	GetOrganizationMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*GetOrganizationMonitorResponse, error)
+
 	// ListOrganizationProjectsWithResponse request
 	ListOrganizationProjectsWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, params *ListOrganizationProjectsParams, reqEditors ...RequestEditorFn) (*ListOrganizationProjectsResponse, error)
 
@@ -3612,6 +3990,71 @@ func (r GetOrganizationResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetOrganizationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateMonitorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *Monitor
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMonitorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMonitorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteOrganizationMonitorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteOrganizationMonitorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteOrganizationMonitorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetOrganizationMonitorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Monitor
+}
+
+// Status returns HTTPResponse.Status
+func (r GetOrganizationMonitorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetOrganizationMonitorResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4030,6 +4473,41 @@ func (c *ClientWithResponses) GetOrganizationWithResponse(ctx context.Context, o
 	return ParseGetOrganizationResponse(rsp)
 }
 
+// CreateMonitorWithBodyWithResponse request with arbitrary body returning *CreateMonitorResponse
+func (c *ClientWithResponses) CreateMonitorWithBodyWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMonitorResponse, error) {
+	rsp, err := c.CreateMonitorWithBody(ctx, organizationIdOrSlug, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMonitorResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, body CreateMonitorJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMonitorResponse, error) {
+	rsp, err := c.CreateMonitor(ctx, organizationIdOrSlug, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMonitorResponse(rsp)
+}
+
+// DeleteOrganizationMonitorWithResponse request returning *DeleteOrganizationMonitorResponse
+func (c *ClientWithResponses) DeleteOrganizationMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*DeleteOrganizationMonitorResponse, error) {
+	rsp, err := c.DeleteOrganizationMonitor(ctx, organizationIdOrSlug, monitorIdOrSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteOrganizationMonitorResponse(rsp)
+}
+
+// GetOrganizationMonitorWithResponse request returning *GetOrganizationMonitorResponse
+func (c *ClientWithResponses) GetOrganizationMonitorWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, monitorIdOrSlug MonitorIdOrSlug, reqEditors ...RequestEditorFn) (*GetOrganizationMonitorResponse, error) {
+	rsp, err := c.GetOrganizationMonitor(ctx, organizationIdOrSlug, monitorIdOrSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetOrganizationMonitorResponse(rsp)
+}
+
 // ListOrganizationProjectsWithResponse request returning *ListOrganizationProjectsResponse
 func (c *ClientWithResponses) ListOrganizationProjectsWithResponse(ctx context.Context, organizationIdOrSlug OrganizationIdOrSlug, params *ListOrganizationProjectsParams, reqEditors ...RequestEditorFn) (*ListOrganizationProjectsResponse, error) {
 	rsp, err := c.ListOrganizationProjects(ctx, organizationIdOrSlug, params, reqEditors...)
@@ -4288,6 +4766,74 @@ func ParseGetOrganizationResponse(rsp *http.Response) (*GetOrganizationResponse,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Organization
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMonitorResponse parses an HTTP response from a CreateMonitorWithResponse call
+func ParseCreateMonitorResponse(rsp *http.Response) (*CreateMonitorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMonitorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Monitor
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteOrganizationMonitorResponse parses an HTTP response from a DeleteOrganizationMonitorWithResponse call
+func ParseDeleteOrganizationMonitorResponse(rsp *http.Response) (*DeleteOrganizationMonitorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteOrganizationMonitorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetOrganizationMonitorResponse parses an HTTP response from a GetOrganizationMonitorWithResponse call
+func ParseGetOrganizationMonitorResponse(rsp *http.Response) (*GetOrganizationMonitorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetOrganizationMonitorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Monitor
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
