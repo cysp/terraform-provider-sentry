@@ -247,12 +247,6 @@ type MonitorConfig struct {
 	Timezone              *string                   `json:"timezone"`
 }
 
-// MonitorConfigSchedule0 defines model for .
-type MonitorConfigSchedule0 = string
-
-// MonitorConfigSchedule1 defines model for .
-type MonitorConfigSchedule1 = []int
-
 // MonitorConfig_Schedule defines model for MonitorConfig.Schedule.
 type MonitorConfig_Schedule struct {
 	union json.RawMessage
@@ -260,6 +254,12 @@ type MonitorConfig_Schedule struct {
 
 // MonitorConfigScheduleType defines model for MonitorConfig.ScheduleType.
 type MonitorConfigScheduleType string
+
+// MonitorConfigScheduleInterval defines model for MonitorConfigScheduleInterval.
+type MonitorConfigScheduleInterval = []interface{}
+
+// MonitorConfigScheduleString defines model for MonitorConfigScheduleString.
+type MonitorConfigScheduleString = string
 
 // MonitorType defines model for MonitorType.
 type MonitorType string
@@ -931,22 +931,22 @@ type UpdateProjectRuleJSONRequestBody UpdateProjectRuleJSONBody
 // CreateOrganizationTeamProjectJSONRequestBody defines body for CreateOrganizationTeamProject for application/json ContentType.
 type CreateOrganizationTeamProjectJSONRequestBody CreateOrganizationTeamProjectJSONBody
 
-// AsMonitorConfigSchedule0 returns the union data inside the MonitorConfig_Schedule as a MonitorConfigSchedule0
-func (t MonitorConfig_Schedule) AsMonitorConfigSchedule0() (MonitorConfigSchedule0, error) {
-	var body MonitorConfigSchedule0
+// AsMonitorConfigScheduleString returns the union data inside the MonitorConfig_Schedule as a MonitorConfigScheduleString
+func (t MonitorConfig_Schedule) AsMonitorConfigScheduleString() (MonitorConfigScheduleString, error) {
+	var body MonitorConfigScheduleString
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromMonitorConfigSchedule0 overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigSchedule0
-func (t *MonitorConfig_Schedule) FromMonitorConfigSchedule0(v MonitorConfigSchedule0) error {
+// FromMonitorConfigScheduleString overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigScheduleString
+func (t *MonitorConfig_Schedule) FromMonitorConfigScheduleString(v MonitorConfigScheduleString) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeMonitorConfigSchedule0 performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigSchedule0
-func (t *MonitorConfig_Schedule) MergeMonitorConfigSchedule0(v MonitorConfigSchedule0) error {
+// MergeMonitorConfigScheduleString performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigScheduleString
+func (t *MonitorConfig_Schedule) MergeMonitorConfigScheduleString(v MonitorConfigScheduleString) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -957,22 +957,22 @@ func (t *MonitorConfig_Schedule) MergeMonitorConfigSchedule0(v MonitorConfigSche
 	return err
 }
 
-// AsMonitorConfigSchedule1 returns the union data inside the MonitorConfig_Schedule as a MonitorConfigSchedule1
-func (t MonitorConfig_Schedule) AsMonitorConfigSchedule1() (MonitorConfigSchedule1, error) {
-	var body MonitorConfigSchedule1
+// AsMonitorConfigScheduleInterval returns the union data inside the MonitorConfig_Schedule as a MonitorConfigScheduleInterval
+func (t MonitorConfig_Schedule) AsMonitorConfigScheduleInterval() (MonitorConfigScheduleInterval, error) {
+	var body MonitorConfigScheduleInterval
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromMonitorConfigSchedule1 overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigSchedule1
-func (t *MonitorConfig_Schedule) FromMonitorConfigSchedule1(v MonitorConfigSchedule1) error {
+// FromMonitorConfigScheduleInterval overwrites any union data inside the MonitorConfig_Schedule as the provided MonitorConfigScheduleInterval
+func (t *MonitorConfig_Schedule) FromMonitorConfigScheduleInterval(v MonitorConfigScheduleInterval) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeMonitorConfigSchedule1 performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigSchedule1
-func (t *MonitorConfig_Schedule) MergeMonitorConfigSchedule1(v MonitorConfigSchedule1) error {
+// MergeMonitorConfigScheduleInterval performs a merge with any union data inside the MonitorConfig_Schedule, using the provided MonitorConfigScheduleInterval
+func (t *MonitorConfig_Schedule) MergeMonitorConfigScheduleInterval(v MonitorConfigScheduleInterval) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
