@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/objectvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
@@ -44,6 +46,37 @@ type MonitorResourceModel struct {
 	Status       types.String `tfsdk:"status"`
 }
 
+func (m MonitorResourceModel) Attributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"id":           ResourceIdAttribute(),
+		"organization": ResourceOrganizationAttribute(),
+		"project":      ResourceProjectAttribute(),
+		"type": schema.StringAttribute{
+			Required: true,
+		},
+		"name": schema.StringAttribute{
+			Required: true,
+		},
+		"owner": schema.StringAttribute{
+			Optional: true,
+		},
+		"slug": schema.StringAttribute{
+			Required: true,
+		},
+		"config": schema.SingleNestedAttribute{
+			Required:   true,
+			Attributes: MonitorConfigResourceModel{}.Attributes(),
+		},
+		"is_muted": schema.BoolAttribute{
+			Optional: true,
+		},
+		"status": schema.StringAttribute{
+			Optional: true,
+			Computed: true,
+		},
+	}
+}
+
 func (m *MonitorResourceModel) Fill(ctx context.Context, organization string, monitor apiclient.Monitor) (diags diag.Diagnostics) {
 	path := path.Empty()
 
@@ -71,26 +104,56 @@ func (m *MonitorResourceModel) Fill(ctx context.Context, organization string, mo
 }
 
 type MonitorConfigResourceModel struct {
-	ScheduleType          types.String  `tfsdk:"schedule_type"`
-	Schedule              types.Dynamic `tfsdk:"schedule"`
-	CheckinMargin         types.Int64   `tfsdk:"checkin_margin"`
-	MaxRuntime            types.Int64   `tfsdk:"max_runtime"`
-	Timezone              types.String  `tfsdk:"timezone"`
-	FailureIssueThreshold types.Int64   `tfsdk:"failure_issue_threshold"`
-	RecoveryThreshold     types.Int64   `tfsdk:"recovery_threshold"`
-	AlertRuleId           types.Int64   `tfsdk:"alert_rule_id"`
+	ScheduleCrontab       types.String `tfsdk:"schedule_crontab"`
+	ScheduleInterval      types.Object `tfsdk:"schedule_interval"`
+	CheckinMargin         types.Int64  `tfsdk:"checkin_margin"`
+	MaxRuntime            types.Int64  `tfsdk:"max_runtime"`
+	Timezone              types.String `tfsdk:"timezone"`
+	FailureIssueThreshold types.Int64  `tfsdk:"failure_issue_threshold"`
+	RecoveryThreshold     types.Int64  `tfsdk:"recovery_threshold"`
+	AlertRuleId           types.Int64  `tfsdk:"alert_rule_id"`
 }
 
-// │ Mismatch between struct and object type: Struct defines fields not found in object:
-// │ checkin_margin, max_runtime, timezone, failure_issue_threshold, recovery_threshold,
-// │ alert_rule_id, schedule_type, and schedule. Object defines fields not found in struct:
-// │ scrape_javascript, security_token, security_token_header, verify_tls_ssl, and
-// │ allowed_domains.
+func (m MonitorConfigResourceModel) Attributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"schedule_crontab": schema.StringAttribute{
+			Optional: true,
+			Validators: []validator.String{
+				stringvalidator.ConflictsWith(path.MatchRelative().AtParent().AtName("schedule_interval")),
+			},
+		},
+		"schedule_interval": schema.SingleNestedAttribute{
+			Optional:   true,
+			Attributes: MonitorConfigIntervalScheduleResourceModel{}.Attributes(),
+			Validators: []validator.Object{
+				objectvalidator.ConflictsWith(path.MatchRelative().AtParent().AtName("schedule_crontab")),
+			},
+		},
+		"checkin_margin": schema.Int64Attribute{
+			Optional: true,
+		},
+		"max_runtime": schema.Int64Attribute{
+			Optional: true,
+		},
+		"timezone": schema.StringAttribute{
+			Optional: true,
+		},
+		"failure_issue_threshold": schema.Int64Attribute{
+			Optional: true,
+		},
+		"recovery_threshold": schema.Int64Attribute{
+			Optional: true,
+		},
+		"alert_rule_id": schema.Int64Attribute{
+			Optional: true,
+		},
+	}
+}
 
-func (m MonitorConfigResourceModel) AttributeTypes() map[string]attr.Type {
+func (m *MonitorConfigResourceModel) AttributeTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"schedule_type":           types.StringType,
-		"schedule":                types.DynamicType,
+		"schedule_crontab":        types.StringType,
+		"schedule_interval":       types.ObjectType{AttrTypes: (&MonitorConfigIntervalScheduleResourceModel{}).AttributeTypes()},
 		"checkin_margin":          types.Int64Type,
 		"max_runtime":             types.Int64Type,
 		"timezone":                types.StringType,
@@ -100,9 +163,73 @@ func (m MonitorConfigResourceModel) AttributeTypes() map[string]attr.Type {
 	}
 }
 
+type MonitorConfigIntervalScheduleResourceModel struct {
+	Year   types.Int64 `tfsdk:"year"`
+	Month  types.Int64 `tfsdk:"month"`
+	Week   types.Int64 `tfsdk:"week"`
+	Day    types.Int64 `tfsdk:"day"`
+	Hour   types.Int64 `tfsdk:"hour"`
+	Minute types.Int64 `tfsdk:"minute"`
+}
+
+func (m MonitorConfigIntervalScheduleResourceModel) Attributes() map[string]schema.Attribute {
+	attributeNames := []string{"year", "month", "week", "day", "hour", "minute"}
+
+	attributes := make(map[string]schema.Attribute, len(attributeNames))
+
+	for _, name := range attributeNames {
+		var conflictingPaths []path.Expression
+
+		for _, conflictingName := range attributeNames {
+			if conflictingName != name {
+				conflictingPaths = append(conflictingPaths, path.MatchRelative().AtParent().AtName(conflictingName))
+			}
+		}
+
+		attributes[name] = schema.Int64Attribute{
+			Optional: true,
+			Validators: []validator.Int64{
+				int64validator.AtLeast(1),
+				int64validator.ConflictsWith(conflictingPaths...),
+			},
+		}
+	}
+
+	return attributes
+}
+
+func (m *MonitorConfigIntervalScheduleResourceModel) AttributeTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"year":   types.Int64Type,
+		"month":  types.Int64Type,
+		"week":   types.Int64Type,
+		"day":    types.Int64Type,
+		"hour":   types.Int64Type,
+		"minute": types.Int64Type,
+	}
+}
+
 func (m *MonitorConfigResourceModel) Fill(ctx context.Context, path path.Path, config apiclient.MonitorConfig) (diags diag.Diagnostics) {
-	m.ScheduleType = types.StringValue(string(config.ScheduleType))
-	// m.Schedule = types.DynamicValue(config.Schedule)
+	switch config.ScheduleType {
+	case apiclient.Crontab:
+		schedule, scheduleErr := config.Schedule.AsMonitorConfigScheduleString()
+		if scheduleErr != nil {
+			diags.AddAttributeError(path.AtName("schedule"), "Invalid schedule", scheduleErr.Error())
+			break
+		}
+		m.ScheduleCrontab = types.StringValue(schedule)
+		m.ScheduleInterval = types.ObjectNull((&MonitorConfigIntervalScheduleResourceModel{}).AttributeTypes())
+	case apiclient.Interval:
+		schedule, scheduleErr := config.Schedule.AsMonitorConfigScheduleInterval()
+		if scheduleErr != nil {
+			diags.AddAttributeError(path.AtName("schedule"), "Invalid schedule", scheduleErr.Error())
+			break
+		}
+		parsedSchedule := tfutils.MergeDiagnostics(parseMonitorConfigIntervalSchedule(schedule))(&diags)
+		m.ScheduleCrontab = types.StringNull()
+		m.ScheduleInterval = tfutils.MergeDiagnostics(types.ObjectValueFrom(ctx, (&MonitorConfigIntervalScheduleResourceModel{}).AttributeTypes(), parsedSchedule))(&diags)
+	}
+
 	m.CheckinMargin = types.Int64Value(config.CheckinMargin)
 	m.MaxRuntime = types.Int64PointerValue(config.MaxRuntime)
 	m.Timezone = types.StringPointerValue(config.Timezone)
@@ -120,6 +247,54 @@ func (m *MonitorConfigResourceModel) Fill(ctx context.Context, path path.Path, c
 	return
 }
 
+func parseMonitorConfigIntervalSchedule(m apiclient.MonitorConfigScheduleInterval) (MonitorConfigIntervalScheduleResourceModel, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+
+	rm := MonitorConfigIntervalScheduleResourceModel{}
+
+	if len(m) != 2 {
+		diags.AddError("Invalid schedule", "Invalid schedule")
+		return rm, diags
+	}
+
+	var number int64
+	number, ok := m[0].(int64)
+	if !ok {
+		diags.AddError("Invalid schedule", "Invalid schedule")
+		return rm, diags
+	}
+
+	var unit string
+	unit, ok = m[1].(string)
+	if !ok {
+		diags.AddError("Invalid schedule", "Invalid schedule")
+		return rm, diags
+	}
+
+	switch unit {
+	case "year":
+		rm.Year = types.Int64Value(number)
+	case "month":
+		rm.Month = types.Int64Value(number)
+	case "week":
+		rm.Week = types.Int64Value(number)
+	case "day":
+		rm.Day = types.Int64Value(number)
+	case "hour":
+		rm.Hour = types.Int64Value(number)
+	case "minute":
+		rm.Minute = types.Int64Value(number)
+	default:
+		diags.AddError("Invalid schedule", "Invalid schedule")
+	}
+
+	return rm, diags
+}
+
+func addressOf[T any](v T) *T {
+	return &v
+}
+
 func (r *MonitorResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_monitor"
 }
@@ -128,54 +303,7 @@ func (r *MonitorResource) Schema(ctx context.Context, req resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Return a client monitor bound to a project.",
 
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				MarkdownDescription: "The ID of this resource.",
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"organization": schema.StringAttribute{
-				MarkdownDescription: "The slug of the organization the resource belongs to.",
-				Required:            true,
-			},
-			"project": schema.StringAttribute{
-				MarkdownDescription: "The slug of the project the resource belongs to.",
-				Optional:            true,
-			},
-			"name": schema.StringAttribute{
-				MarkdownDescription: "The name of the monitor.",
-				Required:            true,
-			},
-			"type": schema.StringAttribute{
-				MarkdownDescription: "The type of the monitor.",
-				Required:            true,
-			},
-			"slug": schema.StringAttribute{
-				MarkdownDescription: "The slug of the monitor.",
-				Optional:            true,
-				Computed:            true,
-			},
-			"status": schema.StringAttribute{
-				MarkdownDescription: "The status of the monitor.",
-				Optional:            true,
-				Computed:            true,
-			},
-			"owner": schema.StringAttribute{
-				MarkdownDescription: "The owner of the monitor.",
-				Optional:            true,
-			},
-			"is_muted": schema.BoolAttribute{
-				MarkdownDescription: "The mute status of the monitor.",
-				Optional:            true,
-			},
-			"config": schema.ObjectAttribute{
-				MarkdownDescription: "The configuration of the monitor.",
-				Required:            true,
-				AttributeTypes:      MonitorConfigResourceModel{}.AttributeTypes(),
-			},
-		},
+		Attributes: MonitorResourceModel{}.Attributes(),
 	}
 }
 

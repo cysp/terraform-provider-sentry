@@ -2192,12 +2192,8 @@ components:
             - interval
         schedule:
           anyOf:
-            - type: string
-            - type: array
-              items:
-                type: integer
-              minItems: 2
-              maxItems: 2
+            - $ref: "#/components/schemas/MonitorConfigScheduleString"
+            - $ref: "#/components/schemas/MonitorConfigScheduleInterval"
         checkin_margin:
           type: integer
           format: int64
@@ -2220,6 +2216,12 @@ components:
           type: integer
           nullable: true
           x-go-type: json.Number
+    MonitorConfigScheduleString:
+      type: string
+    MonitorConfigScheduleInterval:
+      type: array
+      minItems: 2
+      maxItems: 2
     MonitorAlertRule:
       type: object
       properties:
