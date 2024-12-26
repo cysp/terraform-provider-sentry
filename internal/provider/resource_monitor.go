@@ -63,10 +63,7 @@ func (m MonitorResourceModel) Attributes() map[string]schema.Attribute {
 		"slug": schema.StringAttribute{
 			Required: true,
 		},
-		"config": schema.SingleNestedAttribute{
-			Required:   true,
-			Attributes: MonitorConfigResourceModel{}.Attributes(),
-		},
+		"config": MonitorConfigResourceModel{}.Schema(true),
 		"is_muted": schema.BoolAttribute{
 			Optional: true,
 		},
@@ -114,7 +111,14 @@ type MonitorConfigResourceModel struct {
 	AlertRuleId           types.Int64  `tfsdk:"alert_rule_id"`
 }
 
-func (m MonitorConfigResourceModel) Attributes() map[string]schema.Attribute {
+func (m MonitorConfigResourceModel) Schema(required bool) schema.Attribute {
+	return schema.SingleNestedAttribute{
+		Required:   required,
+		Attributes: m.SchemaAttributes(),
+	}
+}
+
+func (m MonitorConfigResourceModel) SchemaAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"schedule_crontab": schema.StringAttribute{
 			Optional: true,
@@ -124,7 +128,7 @@ func (m MonitorConfigResourceModel) Attributes() map[string]schema.Attribute {
 		},
 		"schedule_interval": schema.SingleNestedAttribute{
 			Optional:   true,
-			Attributes: MonitorConfigIntervalScheduleResourceModel{}.Attributes(),
+			Attributes: MonitorConfigIntervalScheduleResourceModel{}.SchemaAttributes(),
 			Validators: []validator.Object{
 				objectvalidator.ConflictsWith(path.MatchRelative().AtParent().AtName("schedule_crontab")),
 			},
@@ -172,7 +176,7 @@ type MonitorConfigIntervalScheduleResourceModel struct {
 	Minute types.Int64 `tfsdk:"minute"`
 }
 
-func (m MonitorConfigIntervalScheduleResourceModel) Attributes() map[string]schema.Attribute {
+func (m MonitorConfigIntervalScheduleResourceModel) SchemaAttributes() map[string]schema.Attribute {
 	attributeNames := []string{"year", "month", "week", "day", "hour", "minute"}
 
 	attributes := make(map[string]schema.Attribute, len(attributeNames))
@@ -291,10 +295,6 @@ func parseMonitorConfigIntervalSchedule(m apiclient.MonitorConfigScheduleInterva
 	return rm, diags
 }
 
-func addressOf[T any](v T) *T {
-	return &v
-}
-
 func (r *MonitorResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_monitor"
 }
@@ -302,8 +302,7 @@ func (r *MonitorResource) Metadata(ctx context.Context, req resource.MetadataReq
 func (r *MonitorResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Return a client monitor bound to a project.",
-
-		Attributes: MonitorResourceModel{}.Attributes(),
+		Attributes:          MonitorResourceModel{}.Attributes(),
 	}
 }
 
