@@ -17,18 +17,18 @@ Return a client monitor bound to a project.
 
 ### Required
 
-- `config` (Object) The configuration of the monitor. (see [below for nested schema](#nestedatt--config))
-- `name` (String) The name of the monitor.
-- `organization` (String) The slug of the organization the resource belongs to.
-- `type` (String) The type of the monitor.
+- `config` (Attributes) (see [below for nested schema](#nestedatt--config))
+- `name` (String)
+- `organization` (String) The organization of this resource.
+- `project` (String) The project of this resource.
+- `slug` (String)
+- `type` (String)
 
 ### Optional
 
-- `is_muted` (Boolean) The mute status of the monitor.
-- `owner` (String) The owner of the monitor.
-- `project` (String) The slug of the project the resource belongs to.
-- `slug` (String) The slug of the monitor.
-- `status` (String) The status of the monitor.
+- `is_muted` (Boolean)
+- `owner` (String)
+- `status` (String)
 
 ### Read-Only
 
@@ -37,13 +37,25 @@ Return a client monitor bound to a project.
 <a id="nestedatt--config"></a>
 ### Nested Schema for `config`
 
-Required:
+Optional:
 
 - `alert_rule_id` (Number)
 - `checkin_margin` (Number)
 - `failure_issue_threshold` (Number)
 - `max_runtime` (Number)
 - `recovery_threshold` (Number)
-- `schedule` (Dynamic)
-- `schedule_type` (String)
+- `schedule_crontab` (String)
+- `schedule_interval` (Attributes) (see [below for nested schema](#nestedatt--config--schedule_interval))
 - `timezone` (String)
+
+<a id="nestedatt--config--schedule_interval"></a>
+### Nested Schema for `config.schedule_interval`
+
+Optional:
+
+- `day` (Number)
+- `hour` (Number)
+- `minute` (Number)
+- `month` (Number)
+- `week` (Number)
+- `year` (Number)
